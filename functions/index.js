@@ -1,15 +1,17 @@
 const functions = require('firebase-functions')
 const rp = require('request-promise')
+// const fetch = require('unfetch')
+// const fetch = require('whatwg-fetch')
 const admin = require('firebase-admin')
 admin.initializeApp()
 
-function postToSlack() {
-  return rp({
+exports.postToSlack = functions.https.onRequest((request, response) => {
+  rp({
     method: 'POST',
-    uri: functions.config.slack_webhook_url,
+    uri: 'https://hooks.slack.com/services/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',
     body: {
       "icon_url": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
-      "text": "test from firebase working",
+      "text": "Un T2 dans une résidence, comprenant une entrée, un séjour avec cuisine, une chambre avec placard, une salle de bains, WC séparés, un dégagement, un parking en sous-sol SANS FRAIS D'AGENCE RÉSERVE AUX SALARIES DU PRIVE 1% LOGEMENT\r\n",
       "attachments": [
         {
           "fallback": "New flat submission !",
@@ -27,6 +29,13 @@ function postToSlack() {
     },
     json: true
   })
-}
+    .then(res => {
+      console.log(res)
+      return response.end(res)
+    })
+    .catch(error => {
+      console.log(error)
+      response.status(500).send(error)
+    })
 
-postToSlack()
+})
