@@ -11,7 +11,7 @@ How to get current posix time in JS: `Math.floor((new Date).getTime()/1000)`
 - description
 - city
 - year of construction
-- where is the flat, first, second floor ?
-- agency phone number / (seller's) mail
+- where is the flat, first, second floor ? (cannot get that one)
+- agency phone number / (seller's) mail (pretty much manual thing ?)
 - photos if available
 - footer, phone and posix time

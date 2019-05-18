@@ -70,7 +70,22 @@ const payload = {
   }
 }
 
-interesting_ones = ['idannonce', 'prix', 'surface', 'cp']
+let
+  aneecontruct, //! may be void
+  bigurl, //? image, nested in `photos` and with the biggest preview
+  cp, // postal code
+  descriptif,
+  idannonce, // for the RealTime database
+  logobigurl, // agence logo
+  nbpiece,
+  permalien, // to quickly access the offer
+  nom, //? nested in `contact`, agency's name
+  prix,
+  surface,
+  titre,
+  ville,
+
+  interesting_ones = ['titre', 'descriptif', 'prix', 'surface']
 
 async function whatever() {
   try {
@@ -81,15 +96,29 @@ async function whatever() {
     let usefulOnes = document[0].children.filter(element => element.type !== 'text')
     let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
 
-    let finalOnes = []
-    coreOnes.forEach((x, index) => finalOnes.push(coreOnes[index].children[0].data))
-    //todo need to see if I can destructure the `coreOnes[index].children[0].data` part to an object with it's paired keys/values
-    let [idannonce, prix, surface, cp] = finalOnes
+    let finalOnes = {}
+    coreOnes.forEach((el, index) => {
+      let fieldName = Object.values(el)[1]
+      finalOnes[fieldName] = coreOnes[index].children[0].data
+      // finalOnes.push(coreOnes[index].children[0].data
+    })
+      //todo need to see if I can destructure the `coreOnes[index].children[0].data` part to an object with it's paired keys/values
+      ; ({ titre, prix: price, surface, cp } = finalOnes)
+
     console.log(finalOnes)
 
   } catch (error) {
     console.log(error)
   }
 }
-
 whatever()
+
+// how to properly destructure a nested object
+// x = {
+//   a: {
+//     aa: 'aaaa'
+//   }
+// }
+
+// var { a: { aa: ok } } = x // x >> aaaa
+// https://www.sitepoint.com/es6-enhanced-object-literals/
