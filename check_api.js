@@ -54,15 +54,6 @@ const axios = require('axios')
 
 const flatsUrl = 'http://ws.seloger.com/search.xml?idtt=1&ci=330281,330063&idtypebien=1&nb_pieces=2&nb_chambres=1&pxmin=400&pxmax=550&surfacemin=45'
 
-function targetField(doc) {
-  interesting_ones = ['cp', 'idannonce', 'surface', 'prix']
-  let temporary = doc.filter(element => element.type !== 'text')
-  let final = temporary.filter(element => interesting_ones.includes(element))
-  console.log(final)
-  return final
-  // return doc.filter(element => element.name == field)[0].children[0].data
-}
-
 const payload = {
   data: {
     text: 'yolo',
@@ -71,41 +62,68 @@ const payload = {
 }
 
 let
-  aneecontruct, //! may be void
-  bigurl, //? image, nested in `photos` and with the biggest preview
+  aneecontruct, //bug? may be void
+  bigurl,
   cp, // postal code
   descriptif,
   idannonce, // for the RealTime database
   logobigurl, // agence logo
   nbpiece,
   permalien, // to quickly access the offer
-  nom, //? nested in `contact`, agency's name
+  nom,
   prix,
   surface,
   titre,
   ville,
 
-  interesting_ones = ['titre', 'descriptif', 'prix', 'surface']
+  interesting_ones = ['aneecontruct', 'cp', 'descriptif', 'idannonce', 'logobigurl', 'nbpiece', 'permalien', 'prix', 'surface', 'titre', 'ville']
 
 async function whatever() {
   try {
     let seLoger = await axios.get(flatsUrl)
     const $ = cheerio.load(seLoger.data, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
-    const document = $('annonce')
-    let yolo = document[0].children
+    const document = $('annonce') //! todo 2) make it awailable for all the 'annonces'
     let usefulOnes = document[0].children.filter(element => element.type !== 'text')
     let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
 
     let finalOnes = {}
     coreOnes.forEach((el, index) => {
       let fieldName = Object.values(el)[1]
-      finalOnes[fieldName] = coreOnes[index].children[0].data
-      // finalOnes.push(coreOnes[index].children[0].data
-    })
-      //todo need to see if I can destructure the `coreOnes[index].children[0].data` part to an object with it's paired keys/values
-      ; ({ titre, prix: price, surface, cp } = finalOnes)
+      finalOnes[fieldName] = el.children[0].data
+      finalOnes['nom'] = usefulOnes
+        .filter(el => el.name === 'contact')[0].children
+        .filter(el2 => el2.name === 'nom')[0].children[0].data
 
-    console.log(finalOnes)
+      let flatPhotos = usefulOnes
+        .filter(el => el.name === 'photos')[0].children
+        .filter(element => element.type !== 'text')
+      if (flatPhotos.length > 0) { //bug? check what happens if there is not photos field or something alike
+        finalOnes['bigurl'] = []
+        flatPhotos.forEach(photo => {
+          finalOnes.bigurl.push(photo.children.filter(el => el.name === 'bigurl')[0].children[0].data)
+        })
+      }
+
+    });
+
+    ({
+      aneecontruct: constructionYear,
+      bigurl: flatImages,
+      cp: postalCode,
+      descriptif: description,
+      idannonce: flatId,
+      logobigurl: agencyLogo,
+      nbpiece: roomsAmount,
+      permalien: permalink,
+      nom: agencyName,
+      prix: price,
+      surface,
+      titre: title,
+      ville: city,
+    } = finalOnes)
+
+    // console.log(constructionYear, flatImages, postalCode, description, flatId, agencyLogo, roomsAmount, permalink, agencyName, price, surface, title, city)
+    //! todo 1) send a slack test notification
 
   } catch (error) {
     console.log(error)
