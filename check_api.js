@@ -78,58 +78,57 @@ let
 
   interesting_ones = ['aneecontruct', 'cp', 'descriptif', 'idannonce', 'logobigurl', 'nbpiece', 'permalien', 'prix', 'surface', 'titre', 'ville']
 
-async function whatever() {
-  try {
-    let seLoger = await axios.get(flatsUrl)
-    const $ = cheerio.load(seLoger.data, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
-    const document = $('annonce') //! todo 2) make it awailable for all the 'annonces'
-    let usefulOnes = document[0].children.filter(element => element.type !== 'text')
-    let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
+  ; (async () => {
+    try {
+      let seLoger = await axios.get(flatsUrl)
+      const $ = cheerio.load(seLoger.data, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
+      const document = $('annonce') //! todo 2) make it awailable for all the 'annonces'
+      let usefulOnes = document[0].children.filter(element => element.type !== 'text')
+      let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
 
-    let finalOnes = {}
-    coreOnes.forEach((el, index) => {
-      let fieldName = Object.values(el)[1]
-      finalOnes[fieldName] = el.children[0].data
-      finalOnes['nom'] = usefulOnes
-        .filter(el => el.name === 'contact')[0].children
-        .filter(el2 => el2.name === 'nom')[0].children[0].data
+      let finalOnes = {}
+      coreOnes.forEach((el, index) => {
+        let fieldName = Object.values(el)[1]
+        finalOnes[fieldName] = el.children[0].data
+        finalOnes['nom'] = usefulOnes
+          .filter(el => el.name === 'contact')[0].children
+          .filter(el2 => el2.name === 'nom')[0].children[0].data
 
-      let flatPhotos = usefulOnes
-        .filter(el => el.name === 'photos')[0].children
-        .filter(element => element.type !== 'text')
-      if (flatPhotos.length > 0) { //bug? check what happens if there is not photos field or something alike
-        finalOnes['bigurl'] = []
-        flatPhotos.forEach(photo => {
-          finalOnes.bigurl.push(photo.children.filter(el => el.name === 'bigurl')[0].children[0].data)
-        })
-      }
+        let flatPhotos = usefulOnes
+          .filter(el => el.name === 'photos')[0].children
+          .filter(element => element.type !== 'text')
+        if (flatPhotos.length > 0) { //bug? check what happens if there is not photos field or something alike
+          finalOnes['bigurl'] = []
+          flatPhotos.forEach(photo => {
+            finalOnes.bigurl.push(photo.children.filter(el => el.name === 'bigurl')[0].children[0].data)
+          })
+        }
 
-    });
+      });
 
-    ({
-      aneecontruct: constructionYear,
-      bigurl: flatImages,
-      cp: postalCode,
-      descriptif: description,
-      idannonce: flatId,
-      logobigurl: agencyLogo,
-      nbpiece: roomsAmount,
-      permalien: permalink,
-      nom: agencyName,
-      prix: price,
-      surface,
-      titre: title,
-      ville: city,
-    } = finalOnes)
+      ({
+        aneecontruct: constructionYear,
+        bigurl: flatImages,
+        cp: postalCode,
+        descriptif: description,
+        idannonce: flatId,
+        logobigurl: agencyLogo,
+        nbpiece: roomsAmount,
+        permalien: permalink,
+        nom: agencyName,
+        prix: price,
+        surface,
+        titre: title,
+        ville: city,
+      } = finalOnes)
 
-    // console.log(constructionYear, flatImages, postalCode, description, flatId, agencyLogo, roomsAmount, permalink, agencyName, price, surface, title, city)
-    //! todo 1) send a slack test notification
+      console.log(constructionYear, flatImages, postalCode, description, flatId, agencyLogo, roomsAmount, permalink, agencyName, price, surface, title, city)
+      //! todo 1) send a slack test notification
 
-  } catch (error) {
-    console.log(error)
-  }
-}
-whatever()
+    } catch (error) {
+      console.log(error)
+    }
+  })()
 
 // how to properly destructure a nested object
 // x = {
