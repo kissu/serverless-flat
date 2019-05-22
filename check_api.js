@@ -1,6 +1,6 @@
 const cheerio = require('cheerio')
 const axios = require('axios')
-
+const fetch = require('isomorphic-unfetch')
 
 // let firstImage, secondImage
 // function getWaterPlaceholderImage(params) {
@@ -83,7 +83,7 @@ let
       let seLoger = await axios.get(flatsUrl)
       const $ = cheerio.load(seLoger.data, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
       const document = $('annonce') //! todo 2) make it awailable for all the 'annonces'
-      let usefulOnes = document[0].children.filter(element => element.type !== 'text')
+      let usefulOnes = document[1].children.filter(element => element.type !== 'text')
       let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
 
       let finalOnes = {}
@@ -122,7 +122,7 @@ let
         ville: city,
       } = finalOnes)
 
-      console.log(constructionYear, flatImages, postalCode, description, flatId, agencyLogo, roomsAmount, permalink, agencyName, price, surface, title, city)
+      console.log(finalOnes)
       //! todo 1) send a slack test notification
 
     } catch (error) {
