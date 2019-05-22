@@ -1,63 +1,120 @@
 // https://us-central1-tastyflats.cloudfunctions.net/postToSlack
 
-const functions = require('firebase-functions')
-const rp = require('request-promise')
-const cheerio = require('cheerio')
-// const fetch = require('unfetch')
+// const payload = {
+//   data: {
+//     text: 'yolo',
+//     price: 12
+//   }
+// }
+
+// const rp = require('request-promise')
 // const fetch = require('whatwg-fetch')
+// const fetch = require('isomorphic-unfetch') // not used because we're using a stream with //ws ??
+const functions = require('firebase-functions')
+const cheerio = require('cheerio')
+const axios = require('axios')
 const admin = require('firebase-admin')
 admin.initializeApp()
 
 const flatsUrl = 'http://ws.seloger.com/search.xml?idtt=1&ci=330281,330063&idtypebien=1&nb_pieces=2&nb_chambres=1&pxmin=400&pxmax=550&surfacemin=45'
+const slackWebhook = 'https://hooks.slack.com/services/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'
+
+async function nice(response) {
+  let pizza = await axios('https://yesno.wtf/api')
+  console.log('inner function', pizza.data.answer)
+  return pizza.data
+}
 
 exports.crawlSeLoger = functions.https.onRequest(async (request, response) => {
-  var crawlOptions = {
-    uri: flatsUrl,
-    transform: function (body) {
-      return cheerio.load(body, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
-    }
-  }
-
-  try {
-    const $ = await rp(crawlOptions)
-    const document = $('annonce')
-    const value = document[1].children.filter(document => document.name === 'surface')[0].children[0].data
-    response.end(value)
-  } catch (error) {
-    console.log(error)
-    response.status(500).send(error)
-  }
+  const pizza = await nice(response)
+  console.log('pizza', pizza.answer)
+  console.log(pizza.image)
+  response.send('http ok')
 })
 
-exports.postToSlack = functions.https.onRequest(async (request, response) => {
+async function crawl() {
+  // let aneecontruct, bigurl, cp, descriptif, idannonce, logobigurl, nbpiece, permalien, nom, prix, surface, titre, ville
+  const interesting_ones = ['aneecontruct', 'cp', 'descriptif', 'idannonce', 'logobigurl', 'nbpiece', 'permalien', 'prix', 'surface', 'titre', 'ville']
+  let finalOnes = {}
+
   try {
-    const post = await rp({
-      method: 'POST',
-      uri: 'https://hooks.slack.com/services/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',
-      body: {
-        "icon_url": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
-        "text": "Un T2 dans une résidence, comprenant une entrée, un séjour avec cuisine, une chambre avec placard, une salle de bains, WC séparés, un dégagement, un parking en sous-sol SANS FRAIS D'AGENCE RÉSERVE AUX SALARIES DU PRIVE 1% LOGEMENT\r\n",
-        "attachments": [
-          {
-            "fallback": "New flat submission !",
-            "color": "#19eaee",
-            "author_name": "Immo de France",
-            "author_link": "https://www.immodefrance.com/",
-            "author_icon": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
-            "title": "Un total de 48.5 m² pour 542 € sur Bordeaux\nAppart au 1er étage et avec 2 pièces\nConstruit en 2008",
-            "title_link": "https://www.seloger.com/annonces/locations/appartement/bordeaux-33/la-bastide/146438207.htm",
-            "footer": "https://www.immodefrance.com ~ 05 56 79 38 38",
-            "footer_icon": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
-            "ts": 1556409110
-          }
-        ]
-      },
-      json: true
-    })
-    console.log(post)
-    response.end(post)
+    let seLoger = await axios.get(flatsUrl)
+    const $ = cheerio.load(seLoger.data, { xmlMode: false, decodeEntities: true, normalizeWhitespace: true })
+    const document = $('annonce') //! todo 2) make it awailable for all the 'annonces'
+    let usefulOnes = document[0].children.filter(element => element.type !== 'text')
+    let coreOnes = usefulOnes.filter(element => interesting_ones.includes(element.name))
+
+    coreOnes.forEach((el, index) => {
+      let fieldName = Object.values(el)[1]
+      finalOnes[fieldName] = el.children[0].data
+      finalOnes['nom'] = usefulOnes
+        .filter(el => el.name === 'contact')[0].children
+        .filter(el2 => el2.name === 'nom')[0].children[0].data
+
+      let flatPhotos = usefulOnes
+        .filter(el => el.name === 'photos')[0].children
+        .filter(element => element.type !== 'text')
+      if (flatPhotos.length > 0) { //bug? check what happens if there is not photos field or something alike
+        finalOnes['bigurl'] = []
+        flatPhotos.forEach(photo => {
+          finalOnes.bigurl.push(photo.children.filter(el => el.name === 'bigurl')[0].children[0].data)
+        })
+      }
+
+    });
+    return finalOnes
+
   } catch (error) {
-    console.log(error)
+    console.log('error...', error)
+    return error
+  }
+}
+
+function sendToSlack(crawledObject, response) {
+  try {
+    ({
+      aneecontruct: constructionYear,
+      bigurl: flatImages,
+      cp: postalCode,
+      descriptif: description,
+      idannonce: flatId,
+      logobigurl: agencyLogo,
+      nbpiece: roomsAmount,
+      permalien: permalink,
+      nom: agencyName,
+      prix: price,
+      surface,
+      titre: title,
+      ville: city,
+    } = finalOnes)
+
+    const post = await axios.post(slackWebhook, {
+      "icon_url": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
+      "text": "Un T2 dans une résidence, comprenant une entrée, un séjour avec cuisine, une chambre avec placard, une salle de bains, WC séparés, un dégagement, un parking en sous-sol SANS FRAIS D'AGENCE RÉSERVE AUX SALARIES DU PRIVE 1% LOGEMENT\r\n",
+      "attachments": [
+        {
+          "fallback": "New flat submission !",
+          "color": "#19eaee",
+          "author_name": `${agencyName}`,
+          "author_link": "https://www.immodefrance.com/",
+          "author_icon": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
+          "title": "Un total de 48.5 m² pour 542 € sur Bordeaux\nAppart au 1er étage et avec 2 pièces\nConstruit en 2008",
+          "title_link": "https://www.seloger.com/annonces/locations/appartement/bordeaux-33/la-bastide/146438207.htm",
+          "footer": "https://www.immodefrance.com ~ 05 56 79 38 38",
+          "footer_icon": "https://v.seloger.com/s/width/75/logos/0/o/n/r/0onrd7bohk9jmfe6mghgl90kd9ouvcmon37z6ori3.jpg",
+          "ts": 1556409110
+        }
+      ]
+    })
+    // console.log(post)
+    response.end('slack sent')
+  } catch (error) {
+    // console.log(error)
     response.status(500).send(error)
   }
+
+}
+
+exports.postToSlack = functions.https.onRequest(async (request, response) => {
+
 })
