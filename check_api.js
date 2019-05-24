@@ -2,29 +2,6 @@ const cheerio = require('cheerio')
 const axios = require('axios')
 const fetch = require('isomorphic-unfetch')
 
-// let firstImage, secondImage
-// function getWaterPlaceholderImage(params) {
-//   axios.get('https://source.unsplash.com/1600x900/?nature,water')
-//     .then(function (response) {
-//       firstImage = 'https://images.unsplash.com' + response.request.path
-//     })
-// }
-// function getJapanPlaceholderImage(params) {
-//   axios.get('https://source.unsplash.com/1600x900/?japan')
-//     .then(function (response) {
-//       secondImage = 'https://images.unsplash.com' + response.request.path
-//     })
-// }
-
-// axios.all([getWaterPlaceholderImage(), getJapanPlaceholderImage()])
-//   .then(axios.spread(function (acct, perms) {
-//     sendToSlack()
-//   }))
-
-// async function go() {
-//   const [users, products] = await Promise.all(a, b)
-// }
-
 // function sendToSlack() {
 //   axios({
 //     method: 'post',
@@ -100,7 +77,8 @@ let
         if (flatPhotos.length > 0) { //bug? check what happens if there is not photos field or something alike
           finalOnes['bigurl'] = []
           flatPhotos.forEach(photo => {
-            finalOnes.bigurl.push(photo.children.filter(el => el.name === 'bigurl')[0].children[0].data)
+
+            finalOnes.bigurl.push(photo.children.filter(el => el.name === 'stdurl')[0].children[0].data)
           })
         }
 
